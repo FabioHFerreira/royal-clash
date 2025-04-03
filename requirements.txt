@@ -1,0 +1,6 @@
+pygame==2.5.2
+pillow==10.2.0
+pymongo==4.6.1
+python-dotenv==1.0.1
+tkinter
+customtkinter==5.2.1
