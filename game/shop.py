@@ -3,9 +3,10 @@ cat > game/shop.py << 'EOL'
 import json
 from datetime import datetime, timedelta
 import random
+from PIL import Image, ImageTk
 
 class ShopItem:
-    def __init__(self, id, name, description, cost, item_type, rarity=None, quantity=1):
+    def __init__(self, id, name, description, cost, item_type, rarity=None, quantity=1, image_path=None):
         self.id = id
         self.name = name
         self.description = description
@@ -13,6 +14,19 @@ class ShopItem:
         self.item_type = item_type  # "card", "chest", "gold", "gems"
         self.rarity = rarity
         self.quantity = quantity
+        self.image = None
+        self.image_path = image_path
+        self.load_image()
+
+    def load_image(self):
+        if self.image_path:
+            try:
+                self.image = Image.open(self.image_path)
+                self.image = self.image.resize((150, 200))
+            except FileNotFoundError:
+                self.image = Image.new('RGB', (150, 200), color='gray')
+        else:
+            self.image = Image.new('RGB', (150, 200), color='gray')
 
 class Shop:
     def __init__(self):
@@ -34,13 +48,78 @@ class Shop:
 
     def _create_default_shop(self):
         self.items = [
-            ShopItem("gold_1000", "Gold Pack", "1000 Gold", 100, "gold", quantity=1000),
-            ShopItem("gold_5000", "Gold Pack", "5000 Gold", 450, "gold", quantity=5000),
-            ShopItem("gems_100", "Gems Pack", "100 Gems", 100, "gems", quantity=100),
-            ShopItem("gems_500", "Gems Pack", "500 Gems", 450, "gems", quantity=500),
-            ShopItem("common_chest", "Common Chest", "Contains 3 Common Cards", 50, "chest", "Common"),
-            ShopItem("rare_chest", "Rare Chest", "Contains 2 Rare Cards", 150, "chest", "Rare"),
-            ShopItem("epic_chest", "Epic Chest", "Contains 1 Epic Card", 300, "chest", "Epic")
+            ShopItem(
+                "gold_1000",
+                "Gold Pack",
+                "1000 Gold",
+                100,
+                "gold",
+                quantity=1000,
+                image_path="assets/shop/gold_pack.png"
+            ),
+            ShopItem(
+                "gold_5000",
+                "Gold Pack",
+                "5000 Gold",
+                450,
+                "gold",
+                quantity=5000,
+                image_path="assets/shop/gold_pack.png"
+            ),
+            ShopItem(
+                "gems_100",
+                "Gems Pack",
+                "100 Gems",
+                100,
+                "gems",
+                quantity=100,
+                image_path="assets/shop/gems_pack.png"
+            ),
+            ShopItem(
+                "gems_500",
+                "Gems Pack",
+                "500 Gems",
+                450,
+                "gems",
+                quantity=500,
+                image_path="assets/shop/gems_pack.png"
+            ),
+            ShopItem(
+                "common_chest",
+                "Common Chest",
+                "Contains 3 Common Cards",
+                50,
+                "chest",
+                "Common",
+                image_path="assets/shop/common_chest.png"
+            ),
+            ShopItem(
+                "rare_chest",
+                "Rare Chest",
+                "Contains 2 Rare Cards",
+                150,
+                "chest",
+                "Rare",
+                image_path="assets/shop/rare_chest.png"
+            ),
+            ShopItem(
+                "epic_chest",
+                "Epic Chest",
+                "Contains 1 Epic Card",
+                300,
+                "chest",
+                "Epic",
+                image_path="assets/shop/epic_chest.png"
+            ),
+            ShopItem(
+                "legendary_chest",
+                "Legendary Chest",
+                "Contains 1 Legendary Card",
+                500,
+                "chest",
+                "Legendary",
+                image_path="assets/shop/legendary_chest.png"
+            )
         ]
 
         self.save_shop_data()
@@ -57,15 +136,47 @@ class Shop:
     def update_offers(self):
         # Update daily offers
         self.daily_offers = [
-            ShopItem("daily_chest", "Daily Chest", "Special daily chest", 0, "chest", "Common"),
-            ShopItem("daily_gold", "Daily Gold", "100 Gold", 0, "gold", quantity=100)
+            ShopItem(
+                "daily_chest",
+                "Daily Chest",
+                "Special daily chest",
+                0,
+                "chest",
+                "Common",
+                image_path="assets/shop/daily_chest.png"
+            ),
+            ShopItem(
+                "daily_gold",
+                "Daily Gold",
+                "100 Gold",
+                0,
+                "gold",
+                quantity=100,
+                image_path="assets/shop/daily_gold.png"
+            )
         ]
 
         # Update special offers (randomly)
         if random.random() < 0.3:  # 30% chance to have a special offer
             self.special_offers = [
-                ShopItem("special_chest", "Special Chest", "Limited time offer!", 200, "chest", "Epic"),
-                ShopItem("special_gems", "Special Gems", "Double gems!", 200, "gems", quantity=200)
+                ShopItem(
+                    "special_chest",
+                    "Special Chest",
+                    "Limited time offer!",
+                    200,
+                    "chest",
+                    "Epic",
+                    image_path="assets/shop/special_chest.png"
+                ),
+                ShopItem(
+                    "special_gems",
+                    "Special Gems",
+                    "Double gems!",
+                    200,
+                    "gems",
+                    quantity=200,
+                    image_path="assets/shop/special_gems.png"
+                )
             ]
         else:
             self.special_offers = []
@@ -101,10 +212,30 @@ class Shop:
 class MicrotransactionManager:
     def __init__(self):
         self.packages = {
-            "starter": {"gems": 100, "price": 4.99},
-            "premium": {"gems": 500, "price": 19.99},
-            "deluxe": {"gems": 1200, "price": 49.99},
-            "ultimate": {"gems": 2500, "price": 99.99}
+            "starter": {
+                "gems": 100,
+                "price": 4.99,
+                "bonus": 0,
+                "image": "assets/shop/starter_pack.png"
+            },
+            "premium": {
+                "gems": 500,
+                "price": 19.99,
+                "bonus": 50,
+                "image": "assets/shop/premium_pack.png"
+            },
+            "deluxe": {
+                "gems": 1200,
+                "price": 49.99,
+                "bonus": 200,
+                "image": "assets/shop/deluxe_pack.png"
+            },
+            "ultimate": {
+                "gems": 2500,
+                "price": 99.99,
+                "bonus": 500,
+                "image": "assets/shop/ultimate_pack.png"
+            }
         }
 
     def process_purchase(self, player, package_id):
@@ -112,8 +243,9 @@ class MicrotransactionManager:
             return False, "Invalid package"
 
         package = self.packages[package_id]
-        player.earn_gems(package["gems"])
-        return True, f"Successfully purchased {package['gems']} gems"
+        total_gems = package["gems"] + package["bonus"]
+        player.earn_gems(total_gems)
+        return True, f"Successfully purchased {total_gems} gems (including {package['bonus']} bonus gems)"
 
     def get_available_packages(self):
         return self.packages
