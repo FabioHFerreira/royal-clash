@@ -3,6 +3,8 @@ from PIL import Image, ImageTk
 import customtkinter as ctk
 import os
 from datetime import datetime
+import json
+from .cards import Card, CardRarity, CardType
 
 class Player:
     def __init__(self, username):
@@ -20,6 +22,28 @@ class Player:
         self.achievements = {}
         self.avatar = None
         self.load_avatar()
+        self.load_initial_cards()
+        
+    def load_initial_cards(self):
+        try:
+            with open("data/initial_deck.json", "r") as f:
+                initial_cards = json.load(f)
+                for card_data in initial_cards["cards"]:
+                    card = Card(
+                        id=card_data["id"],
+                        name=card_data["name"],
+                        rarity=CardRarity(card_data["rarity"]),
+                        type=CardType(card_data["type"]),
+                        attack=card_data["attack"],
+                        defense=card_data["defense"],
+                        cost=card_data["cost"],
+                        description=card_data["description"],
+                        special_ability=card_data.get("special_ability")
+                    )
+                    self.add_card(card)
+                    self.add_to_deck(card)
+        except FileNotFoundError:
+            print("Initial deck file not found. Starting with empty deck.")
         
     def load_avatar(self):
         try:
