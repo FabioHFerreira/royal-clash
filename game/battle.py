@@ -31,29 +31,64 @@ class Battle:
         self.player1_mana = min(10, self.player1_mana + 1)
         self.player2_mana = min(10, self.player2_mana + 1)
 
-        # Players play cards
-        p1_card = self._play_strategic_card(self.player1, self.player1_mana, self.player1_field)
-        p2_card = self._play_strategic_card(self.player2, self.player2_mana, self.player2_field)
-
-        # Add cards to field and process effects
-        if p1_card:
-            self.player1_field.append(p1_card)
-            self.player1_mana -= p1_card.cost
-            self._process_card_effects(p1_card, self.player1, self.player2)
-            self.log.append(f"{self.player1.username} played {p1_card.name}")
-
-        if p2_card:
-            self.player2_field.append(p2_card)
-            self.player2_mana -= p2_card.cost
-            self._process_card_effects(p2_card, self.player2, self.player1)
-            self.log.append(f"{self.player2.username} played {p2_card.name}")
-
-        # Battle phase - cards attack each other
-        self._resolve_battles()
-
-        # Clean up destroyed cards
-        self._cleanup_field()
-
+        # Get active cards
+        player_card = self.player1_field[0] if self.player1_field else None
+        enemy_card = self.player2_field[0] if self.player2_field else None
+        
+        if not player_card or not enemy_card:
+            return False
+            
+        # Process effects
+        player_card.process_effects()
+        enemy_card.process_effects()
+        
+        # Player card attacks enemy card
+        damage = player_card.attack
+        enemy_card.defense -= damage
+        self.log.append(f"{player_card.name} deals {damage} damage to {enemy_card.name}")
+        
+        # Use special ability if available
+        if player_card.special_ability:
+            effect = player_card.use_special_ability(enemy_card)
+            if effect:
+                self.log.append(f"{player_card.name} {effect}")
+                self.animation_queue.append({
+                    "type": "special_ability",
+                    "card": player_card,
+                    "effect": effect
+                })
+        
+        # Enemy card counter-attacks if still alive
+        if enemy_card.defense > 0:
+            damage = enemy_card.attack
+            player_card.defense -= damage
+            self.log.append(f"{enemy_card.name} deals {damage} damage to {player_card.name}")
+            
+            # Enemy uses special ability if available
+            if enemy_card.special_ability:
+                effect = enemy_card.use_special_ability(player_card)
+                if effect:
+                    self.log.append(f"{enemy_card.name} {effect}")
+                    self.animation_queue.append({
+                        "type": "special_ability",
+                        "card": enemy_card,
+                        "effect": effect
+                    })
+        
+        # Remove defeated cards
+        if player_card.defense <= 0:
+            self.log.append(f"{player_card.name} was defeated!")
+            self.player1_field.pop(0)
+            
+        if enemy_card.defense <= 0:
+            self.log.append(f"{enemy_card.name} was defeated!")
+            self.player2_field.pop(0)
+            
+        # Reduce cooldowns
+        for card in self.player1_field + self.player2_field:
+            if card.cooldown > 0:
+                card.cooldown -= 1
+                
         self.turn += 1
 
         # Check if battle should end

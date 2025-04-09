@@ -6,99 +6,9 @@ from datetime import datetime
 import random
 import pygame
 import time
-
-class Card:
-    def __init__(self, id, name, rarity, attack, defense, cost):
-        self.id = id
-        self.name = name
-        self.rarity = rarity
-        self.attack = attack
-        self.defense = defense
-        self.cost = cost
-        self.level = 1
-        self.experience = 0
-        self.image = None
-        self.animation = None
-
-    def load_image(self):
-        try:
-            image_path = f"assets/cards/{self.id}.png"
-            self.image = Image.open(image_path)
-            self.image = self.image.resize((150, 200))
-        except FileNotFoundError:
-            # Use a default card image if specific card image is not found
-            self.image = Image.new('RGB', (150, 200), color='gray')
-
-    def upgrade(self):
-        if self.experience >= self.level * 100:
-            self.level += 1
-            self.attack += self.level * 2
-            self.defense += self.level * 2
-            self.experience = 0
-            return True
-        return False
-
-class Player:
-    def __init__(self, username):
-        self.username = username
-        self.level = 1
-        self.experience = 0
-        self.gold = 1000
-        self.gems = 50
-        self.cards = []
-        self.deck = []
-        self.trophies = 0
-        self.chests = []
-        self.last_login = datetime.now()
-        self.daily_rewards = []
-        self.achievements = {}
-        self.avatar = None
-
-    def load_avatar(self):
-        try:
-            avatar_path = f"assets/avatars/{self.username}.png"
-            self.avatar = Image.open(avatar_path)
-            self.avatar = self.avatar.resize((100, 100))
-            self.avatar = ctk.CTkImage(self.avatar, size=(100, 100))
-        except FileNotFoundError:
-            self.avatar = ctk.CTkImage(Image.new('RGB', (100, 100), color='blue'), size=(100, 100))
-
-    def earn_gold(self, amount):
-        self.gold += amount
-
-    def spend_gold(self, amount):
-        if self.gold >= amount:
-            self.gold -= amount
-            return True
-        return False
-
-    def earn_gems(self, amount):
-        self.gems += amount
-
-    def spend_gems(self, amount):
-        if self.gems >= amount:
-            self.gems -= amount
-            return True
-        return False
-
-    def add_card(self, card):
-        self.cards.append(card)
-
-    def add_to_deck(self, card):
-        if len(self.deck) < 8 and card in self.cards:
-            self.deck.append(card)
-            return True
-        return False
-
-    def earn_trophies(self, amount):
-        self.trophies += amount
-
-    def add_chest(self, chest_type, unlock_time):
-        self.chests.append({
-            "type": chest_type,
-            "unlock_time": unlock_time,
-            "unlocked": False
-        })
+from player import Player
+from cards import Card, CardRarity, CardType
+from battle import BattleManager
 
 class Game:
     def __init__(self):
@@ -180,31 +90,30 @@ class Game:
         if player1 not in self.players or player2 not in self.players:
             return None
 
-        p1_deck = self.players[player1].deck
-        p2_deck = self.players[player2].deck
+        p1 = self.players[player1]
+        p2 = self.players[player2]
 
-        if not p1_deck or not p2_deck:
+        if not p1.deck or not p2.deck:
             return None
 
         # Play battle sound
         self.safe_play_sound("battle")
 
-        p1_score = sum(card.attack + card.defense for card in p1_deck)
-        p2_score = sum(card.attack + card.defense for card in p2_deck)
+        # Create battle manager and start battle
+        battle_manager = BattleManager()
+        result, message = battle_manager.start_battle(p1, p2)
 
-        winner = player1 if p1_score > p2_score else player2
-        loser = player2 if winner == player1 else player1
+        if result:
+            winner = p1 if result["winner"] == p1.username else p2
+            loser = p2 if winner == p1 else p1
 
-        # Play victory/defeat sounds
-        self.safe_play_sound("victory")
+            # Play victory/defeat sounds
+            self.safe_play_sound("victory")
 
-        self.players[winner].earn_gold(100)
-        self.players[winner].earn_trophies(30)
-        self.players[loser].earn_gold(50)
-        self.players[loser].earn_trophies(10)
-
-        self.save_game_data()
-        return winner, loser     
+            self.save_game_data()
+            return winner.username, loser.username
+        
+        return None
 
 class GameApp(ctk.CTk):
     def __init__(self):
@@ -291,9 +200,36 @@ class GameApp(ctk.CTk):
             # Give new player basic cards
             player = self.game.players[username]
             basic_cards = [
-                Card(1, "Basic Warrior", "Common", 5, 5, 2),
-                Card(2, "Basic Archer", "Common", 4, 3, 2),
-                Card(3, "Basic Tank", "Common", 3, 7, 3)
+                Card(
+                    id="basic_warrior",
+                    name="Basic Warrior",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=5,
+                    defense=5,
+                    cost=2,
+                    description="A basic warrior ready for battle"
+                ),
+                Card(
+                    id="basic_archer",
+                    name="Basic Archer",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=4,
+                    defense=3,
+                    cost=2,
+                    description="A basic archer with ranged attacks"
+                ),
+                Card(
+                    id="basic_tank",
+                    name="Basic Tank",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=3,
+                    defense=7,
+                    cost=3,
+                    description="A basic tank with high defense"
+                )
             ]
             for card in basic_cards:
                 player.add_card(card)
@@ -448,9 +384,36 @@ class GameApp(ctk.CTk):
             # Give opponent basic cards
             opponent = self.game.players[opponent_name]
             basic_cards = [
-                Card(1, "Basic Warrior", "Common", 5, 5, 2),
-                Card(2, "Basic Archer", "Common", 4, 3, 2),
-                Card(3, "Basic Tank", "Common", 3, 7, 3)
+                Card(
+                    id="basic_warrior",
+                    name="Basic Warrior",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=5,
+                    defense=5,
+                    cost=2,
+                    description="A basic warrior ready for battle"
+                ),
+                Card(
+                    id="basic_archer",
+                    name="Basic Archer",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=4,
+                    defense=3,
+                    cost=2,
+                    description="A basic archer with ranged attacks"
+                ),
+                Card(
+                    id="basic_tank",
+                    name="Basic Tank",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=3,
+                    defense=7,
+                    cost=3,
+                    description="A basic tank with high defense"
+                )
             ]
             for card in basic_cards:
                 opponent.add_card(card)
@@ -474,9 +437,36 @@ class GameApp(ctk.CTk):
             bot = self.game.players[bot_name]
             # Give bot some basic cards
             basic_cards = [
-                Card(1, "Basic Warrior", "Common", 5, 5, 2),
-                Card(2, "Basic Archer", "Common", 4, 3, 2),
-                Card(3, "Basic Tank", "Common", 3, 7, 3)
+                Card(
+                    id="basic_warrior",
+                    name="Basic Warrior",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=5,
+                    defense=5,
+                    cost=2,
+                    description="A basic warrior ready for battle"
+                ),
+                Card(
+                    id="basic_archer",
+                    name="Basic Archer",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=4,
+                    defense=3,
+                    cost=2,
+                    description="A basic archer with ranged attacks"
+                ),
+                Card(
+                    id="basic_tank",
+                    name="Basic Tank",
+                    rarity=CardRarity.COMMON,
+                    type=CardType.TROOP,
+                    attack=3,
+                    defense=7,
+                    cost=3,
+                    description="A basic tank with high defense"
+                )
             ]
             for card in basic_cards:
                 bot.add_card(card)
@@ -816,11 +806,11 @@ class GameApp(ctk.CTk):
     def show_cards_shop(self):
         # Clear shop content
         for widget in self.game_frame.winfo_children():
-            if isinstance(widget, ctk.CTkFrame) and widget.winfo_name() == "shop_content":
+            if isinstance(widget, ctk.CTkFrame):
                 widget.destroy()
         
         # Create cards shop content
-        shop_content = ctk.CTkFrame(self.game_frame, fg_color="transparent", name="shop_content")
+        shop_content = ctk.CTkFrame(self.game_frame, fg_color="transparent")
         shop_content.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Create scrollable frame for cards
@@ -879,10 +869,11 @@ class GameApp(ctk.CTk):
     def show_chests_shop(self):
         # Clear shop content
         for widget in self.game_frame.winfo_children():
-            if isinstance(widget, ctk.CTkFrame) and widget.winfo_name() == "shop_content":
+            if isinstance(widget, ctk.CTkFrame):
                 widget.destroy()
         
         # Create chests shop content
+        shop_content = ctk.CTkFrame(self.game_frame, fg_color="transparent")
         shop_content = ctk.CTkFrame(self.game_frame, fg_color="transparent", name="shop_content")
         shop_content.pack(fill="both", expand=True, padx=20, pady=20)
         

@@ -1,5 +1,3 @@
-# Criar o arquivo cards.py
-cat > game/cards.py << 'EOL'
 import json
 import random
 from enum import Enum
@@ -104,9 +102,45 @@ class Card:
 
     def use_special_ability(self, target=None):
         if self.special_ability and self.cooldown <= 0:
-            effect = self.special_ability(self, target)
-            self.cooldown = 3  # Set cooldown to 3 turns
-            return effect
+            ability_data = self.special_ability
+            
+            if ability_data["type"] == "heal":
+                # Heal target card or player
+                if target:
+                    target.defense = min(target.defense + ability_data["value"], target.defense * 2)
+                    return f"Healed {ability_data['value']} health"
+                return None
+                
+            elif ability_data["type"] == "buff":
+                # Add buff effect to target
+                effect = CardEffect(
+                    name=ability_data["name"],
+                    duration=ability_data["duration"],
+                    effect_type="buff",
+                    value=ability_data["value"]
+                )
+                target.add_effect(effect)
+                return f"Applied {ability_data['name']} buff"
+                
+            elif ability_data["type"] == "debuff":
+                # Add debuff effect to target
+                effect = CardEffect(
+                    name=ability_data["name"],
+                    duration=ability_data["duration"],
+                    effect_type="debuff",
+                    value=ability_data["value"]
+                )
+                target.add_effect(effect)
+                return f"Applied {ability_data['name']} debuff"
+                
+            elif ability_data["type"] == "damage":
+                # Deal damage to target
+                if target:
+                    target.defense -= ability_data["value"]
+                    return f"Dealt {ability_data['value']} damage"
+                return None
+                
+            return None
         return None
 
     def add_effect(self, effect):

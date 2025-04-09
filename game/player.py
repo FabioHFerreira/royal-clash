@@ -4,7 +4,12 @@ import customtkinter as ctk
 import os
 from datetime import datetime
 import json
-from .cards import Card, CardRarity, CardType
+import sys
+from pathlib import Path
+
+# Adiciona o diretório pai ao path para importar corretamente
+sys.path.append(str(Path(__file__).parent.parent))
+from game.cards import Card, CardRarity, CardType
 
 class Player:
     def __init__(self, username):
@@ -26,24 +31,47 @@ class Player:
         
     def load_initial_cards(self):
         try:
-            with open("data/initial_deck.json", "r") as f:
+            # Verifica o caminho atual
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            initial_deck_path = os.path.join(current_dir, "..", "data", "initial_deck.json")
+            print(f"Tentando carregar deck inicial de: {initial_deck_path}")
+            
+            if not os.path.exists(initial_deck_path):
+                raise FileNotFoundError(f"Arquivo não encontrado: {initial_deck_path}")
+            
+            with open(initial_deck_path, "r") as f:
                 initial_cards = json.load(f)
+                print(f"Cards encontrados: {len(initial_cards['cards'])}")
+                
+                # Primeiro adiciona todos os cards à coleção
                 for card_data in initial_cards["cards"]:
-                    card = Card(
-                        id=card_data["id"],
-                        name=card_data["name"],
-                        rarity=CardRarity(card_data["rarity"]),
-                        type=CardType(card_data["type"]),
-                        attack=card_data["attack"],
-                        defense=card_data["defense"],
-                        cost=card_data["cost"],
-                        description=card_data["description"],
-                        special_ability=card_data.get("special_ability")
-                    )
-                    self.add_card(card)
-                    self.add_to_deck(card)
-        except FileNotFoundError:
-            print("Initial deck file not found. Starting with empty deck.")
+                    print(f"Processando card: {card_data['name']}")
+                    try:
+                        card = Card(
+                            id=card_data["id"],
+                            name=card_data["name"],
+                            rarity=CardRarity(card_data["rarity"]),
+                            type=CardType(card_data["type"]),
+                            attack=card_data["attack"],
+                            defense=card_data["defense"],
+                            cost=card_data["cost"],
+                            description=card_data["description"],
+                            special_ability=card_data.get("special_ability")
+                        )
+                        self.cards.append(card)  # Adiciona direto à lista de cards
+                        print(f"Card {card.name} adicionado à coleção")
+                    except Exception as e:
+                        print(f"Erro ao criar card {card_data['name']}: {str(e)}")
+                
+                # Depois adiciona os cards ao deck
+                for card in self.cards:
+                    self.deck.append(card)  # Adiciona direto ao deck
+                    print(f"Card {card.name} adicionado ao deck")
+                    
+        except FileNotFoundError as e:
+            print(f"Arquivo de deck inicial não encontrado: {str(e)}")
+        except Exception as e:
+            print(f"Erro ao carregar deck inicial: {str(e)}")
         
     def load_avatar(self):
         try:
@@ -92,16 +120,17 @@ class Player:
         return False
         
     def add_card(self, card):
-        self.cards.append(card)
-        # Play card sound effect
-        try:
-            card_sound = pygame.mixer.Sound("assets/sounds/card_collect.mp3")
-            card_sound.play()
-        except:
-            pass
+        if card not in self.cards:  # Evita duplicatas
+            self.cards.append(card)
+            # Play card sound effect
+            try:
+                card_sound = pygame.mixer.Sound("assets/sounds/card_collect.mp3")
+                card_sound.play()
+            except:
+                pass
             
     def add_to_deck(self, card):
-        if len(self.deck) < 8 and card in self.cards:
+        if len(self.deck) < 8 and card in self.cards and card not in self.deck:  # Evita duplicatas no deck
             self.deck.append(card)
             return True
         return False
